@@ -51,7 +51,7 @@ function create() {
 
   startTime = scene.time.now;
 
-  seed = scene.add.circle(400, 2900, 14, 0x4caf50);
+  seed = scene.add.circle(400, 2950, 14, 0x4caf50);
   scene.physics.add.existing(seed);
   seed.body.setAllowGravity(false);
   seed.body.setImmovable(true);
@@ -205,6 +205,104 @@ function create() {
     drop.body.setVelocityY(drop.body.velocity.y * 0.5);
     messageText.setText("🟣 Heavy pollution...");
   });
+// 🪵 Visuele overgang tussen Industrial en Fertile Earth
+scene.add.rectangle(400, 1950, 800, 700, 0xdbe6c6).setDepth(-1); // Loopt van y=1600 → 2300
+
+// 🌱 Fertile Earth: volledig visueel van y=2000 → y=2900 (zaadhoogte)
+const offsetY3 = 2000;
+scene.add.rectangle(400, offsetY3 + 450, 800, 900, 0xdbe6c6).setDepth(-1); // y=2450, hoogte=900 → bedekt 2000–2900
+
+// 🌸 Intro Bloempad — vult direct begin
+const introPad = scene.add.rectangle(400, offsetY3 + 30, 200, 20, 0xffc1e3);
+scene.physics.add.existing(introPad);
+introPad.body.setAllowGravity(false);
+introPad.body.setImmovable(true);
+scene.physics.add.overlap(drop, introPad, () => {
+  dropRadius = Math.min(dropRadius + 1, 34);
+  messageText.setText("🌸 You enter life-rich soil...");
+});
+
+// 🌾 Nutrient Pad — vergroot je
+const pad = scene.add.rectangle(400, offsetY3 + 150, 120, 20, 0x8bc34a);
+scene.physics.add.existing(pad);
+pad.body.setAllowGravity(false);
+pad.body.setImmovable(true);
+scene.physics.add.overlap(drop, pad, () => {
+  dropRadius = Math.min(dropRadius + 4, 40);
+  drop.setRadius(dropRadius);
+  messageText.setText("🌾 You are nourished by fertile ground...");
+});
+
+// 🌬️ Vent — tilt je omhoog
+const vent = scene.add.rectangle(600, offsetY3 + 200, 120, 20, 0x90caf9);
+scene.physics.add.existing(vent);
+vent.body.setAllowGravity(false);
+vent.body.setImmovable(true);
+scene.physics.add.collider(drop, vent, () => {
+  drop.body.setVelocityY(-220);
+  messageText.setText("🌬️ Fertile vent lifts you...");
+});
+
+// 🌿 Moving Root — vermijden
+const movingRoot = scene.add.rectangle(300, offsetY3 + 400, 180, 20, 0x6d4c41);
+scene.physics.add.existing(movingRoot);
+movingRoot.body.setAllowGravity(false);
+movingRoot.body.setImmovable(true);
+scene.tweens.add({
+  targets: movingRoot,
+  x: { from: 200, to: 600 },
+  duration: 2000,
+  yoyo: true,
+  repeat: -1
+});
+scene.physics.add.collider(drop, movingRoot, () => {
+  scene.cameras.main.stopFollow();
+  messageText.setText("🌿 Trapped by root in fertile earth...");
+  endGame(scene);
+});
+
+// 🍄 Extra random elementen in Fertile Earth — y ≤ 2850
+for (let i = 0; i < 3; i++) {
+  const flowerY = Phaser.Math.Between(offsetY3 + 250, 2800);
+  const flowerPad = scene.add.rectangle(
+    Phaser.Math.Between(100, 700),
+    flowerY,
+    80, 20,
+    0xffc1e3
+  );
+  scene.physics.add.existing(flowerPad);
+  flowerPad.body.setAllowGravity(false);
+  flowerPad.body.setImmovable(true);
+  scene.physics.add.overlap(drop, flowerPad, () => {
+    dropRadius = Math.min(dropRadius + 2, 44);
+    drop.setRadius(dropRadius);
+    messageText.setText("🌸 A flower helps you bloom...");
+  });
+}
+
+// 🌿 Vines — visueel en dynamisch binnen bereik
+for (let i = 0; i < 2; i++) {
+  const vineY = Phaser.Math.Between(offsetY3 + 300, 2800);
+  const vine = scene.add.rectangle(
+    Phaser.Math.Between(120, 680),
+    vineY,
+    16, 120,
+    0x388e3c
+  );
+  scene.physics.add.existing(vine);
+  vine.body.setAllowGravity(false);
+  vine.body.setImmovable(true);
+  scene.tweens.add({
+    targets: vine,
+    x: { from: vine.x - 40, to: vine.x + 40 },
+    duration: 1600,
+    yoyo: true,
+    repeat: -1
+  });
+  scene.physics.add.collider(drop, vine, () => {
+    messageText.setText("🌿 Entangled in spreading vine...");
+  });
+}
 
   // 🎮 Controls
   scene.input.keyboard.on("keydown-LEFT", () => {
@@ -230,7 +328,7 @@ function update() {
 
   if (y < 1000) zoneName = "Atmosphere";
   else if (y >= 1000 && y < 2000) zoneName = "Industrial Layer";
-  else if (y >= 2000) zoneName = "Growth Zone";
+  else if (y >= 2000 && y < 3000) zoneName = "Fertile Earth";
 
   if (zoneName !== lastZone && !gameOver) {
     messageText.setText(`💧 One Drop in: ${zoneName}`);
