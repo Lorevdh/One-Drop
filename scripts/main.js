@@ -46,6 +46,17 @@ function create() {
   const scene = this;
   scene.cameras.main.setBounds(0, 0, 800, 3000);
   scene.physics.world.setBounds(0, 0, 800, 3000);
+  // 🌤️ Atmosphere Layer
+  scene.add.rectangle(400, 300, 800, 600, 0xd0e2f2).setDepth(-1);
+
+  // 🏭 Industrial Layer background
+  scene.add.rectangle(400, 1300, 800, 600, 0xcfcfcf).setDepth(-1);
+
+  // 🪵 Overgang Industrial → Fertile Earth
+  scene.add.rectangle(400, 1950, 800, 700, 0xdbe6c6).setDepth(-1);
+
+  // 🌱 Fertile Earth background
+  scene.add.rectangle(400, 2450, 800, 900, 0xdbe6c6).setDepth(-1);
 
   drop = scene.physics.add.sprite(400, 100, 'dropSprite').setScale(originalScale).setCircle(100);
   drop.body.setBounce(0.3);
@@ -132,7 +143,7 @@ function create() {
   });
 
   // 🟣 Pollution Zones
-  [1200, 2200].forEach(y => {
+  [1200].forEach(y => {
     const p = scene.physics.add.sprite(Phaser.Math.Between(200, 600), y, 'pollutionSprite').setScale(0.2);
     p.body.setAllowGravity(false);
     p.body.setImmovable(true);
@@ -178,18 +189,26 @@ function create() {
     drop.body.setVelocityY(-220);
     messageText.setText("💨 Steam jet pushes you upward...");
   });
-
+  // Fertile layer
+  const seedY = 2950;
+  const fertileMinX = 50;
+  const fertileMaxX = 750;
+  const fertileMinY = 1950;
+  const fertileMaxY = seedY - 200; // 2750
   // 🌸 Intro Pad
-  const introPad = scene.physics.add.sprite(400, 2030, 'introPadSprite').setScale(0.2);
+  const introPadX = Phaser.Math.Between(fertileMinX, fertileMaxX);
+  const introPadY = Phaser.Math.Between(fertileMinY, fertileMaxY);
+  const introPad = scene.physics.add.sprite(introPadX, introPadY, 'introPadSprite').setScale(0.2);
   introPad.body.setAllowGravity(false);
   introPad.body.setImmovable(true);
   scene.physics.add.overlap(drop, introPad, () => {
     drop.setScale(Math.min(drop.scaleX + 0.01, 0.35));
     messageText.setText("🌸 You enter life-rich soil...");
   });
-
   // 🌾 Fertile Pad
-  const pad = scene.physics.add.sprite(400, 2150, 'padSprite').setScale(0.2);
+  const padX = Phaser.Math.Between(fertileMinX, fertileMaxX);
+  const padY = Phaser.Math.Between(fertileMinY, fertileMaxY);
+  const pad = scene.physics.add.sprite(padX, padY, 'padSprite').setScale(0.2);
   pad.body.setAllowGravity(false);
   pad.body.setImmovable(true);
   scene.physics.add.overlap(drop, pad, () => {
@@ -198,7 +217,9 @@ function create() {
   });
 
   // 🌬️ Air Vent
-  const airVent = scene.physics.add.sprite(600, 2200, 'airventSprite').setScale(0.2);
+  const airVentX = Phaser.Math.Between(fertileMinX, fertileMaxX);
+  const airVentY = Phaser.Math.Between(fertileMinY, fertileMaxY);
+  const airVent = scene.physics.add.sprite(airVentX, airVentY, 'airventSprite').setScale(0.2);
   airVent.body.setAllowGravity(false);
   airVent.body.setImmovable(true);
   scene.physics.add.collider(drop, airVent, () => {
@@ -207,33 +228,45 @@ function create() {
   });
 
   // 🌿 Moving Root
-  const root = scene.physics.add.sprite(400, 2450, 'rootSprite').setScale(0.15);
-  root.body.setAllowGravity(false);
-  root.body.setImmovable(true);
-  scene.tweens.add({
-    targets: root,
-    x: { from: 300, to: 500 },
-    duration: 4000,
-    yoyo: true,
-    repeat: -1
-  });
-  scene.physics.add.collider(drop, root, () => {
-    scene.cameras.main.stopFollow();
-    messageText.setText("🌿 Caught by root, stuck...");
-    endGame(scene);
-  });
-
+  const rootX = Phaser.Math.Between(fertileMinX, fertileMaxX);
+const rootY = Phaser.Math.Between(fertileMinY, fertileMaxY);
+const root = scene.physics.add.sprite(rootX, rootY, 'rootSprite').setScale(0.25);  // groter
+root.body.setAllowGravity(false);
+root.body.setImmovable(true);
+scene.tweens.add({
+  targets: root,
+  x: { from: rootX - 100, to: rootX + 100 },
+  duration: 4000,
+  yoyo: true,
+  repeat: -1
+});
+scene.physics.add.collider(drop, root, () => {
+  scene.cameras.main.stopFollow();
+  messageText.setText("🌿 Caught by root, stuck...");
+  endGame(scene);
+});
   // 🍃 Vines
-  const vines = scene.physics.add.sprite(600, 2550, 'vinesSprite').setScale(0.15);
-  vines.body.setAllowGravity(false);
-  vines.body.setImmovable(true);
-  scene.physics.add.collider(drop, vines, () => {
-    drop.body.setVelocityY(drop.body.velocity.y * 0.7);
-    messageText.setText("🍃 Tangled in vines, slowed down...");
-  });
+  const vineCount = 6;
+  for (let i = 0; i < vineCount; i++) {
+    const x = Phaser.Math.Between(fertileMinX, fertileMaxX);
+    const y = Phaser.Math.Between(fertileMinY, fertileMaxY);
+    const vine = scene.physics.add.sprite(x, y, 'vinesSprite').setScale(0.15);
+    vine.body.setAllowGravity(false);
+    vine.body.setImmovable(true);
+    scene.physics.add.collider(drop, vine, () => {
+      drop.body.setVelocityY(drop.body.velocity.y * 0.7);
+      messageText.setText("🍃 Tangled in vines, slowed down...");
+    });
+  }
+
 
   // 🌼 Flower (decoratie)
-  scene.add.image(400, 2900, 'flowerSprite').setScale(0.15);
+  const flowerCount = 6;
+  for (let i = 0; i < flowerCount; i++) {
+    const fx = Phaser.Math.Between(fertileMinX, fertileMaxX);
+    const fy = Phaser.Math.Between(fertileMinY, fertileMaxY);
+    scene.add.image(fx, fy, 'flowerSprite').setScale(0.15);
+  }
 
   // 🎮 Besturing (met cursors)
   cursors = scene.input.keyboard.createCursorKeys();
