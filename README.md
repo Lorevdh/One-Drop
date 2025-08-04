@@ -1,5 +1,7 @@
 # 💧 One Drop — A Minimalist Tale of Water and Hope
 
+![💧 Screenshot van gameplay](assets/screenshot.png)
+
 A poetic, side-scrolling game where you play as a solitary droplet journeying through layers of earth to awaken a buried seed. Navigate obstacles, avoid decay, and let gravity guide you to the heart of growth.
 
 ## 🎮 Gameplay
