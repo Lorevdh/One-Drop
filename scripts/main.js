@@ -10,154 +10,145 @@ const config = {
       debug: false
     }
   },
-  scene: {
-    preload,
-    create,
-    update
-  }
+  scene: { preload, create, update }
 };
-
 const game = new Phaser.Game(config);
 
-let drop, seed, messageText, timerText, cursors, resetText, spaceKey;
-let gameOver = false;
-let startTime;
-let dropRadius = 20;
+let drop, seed, messageText, timerText, cursors, spaceKey;
+let gameOver = false, startTime;
 const originalScale = 0.15;
+let growthStage = 0, growthSprite;
 
 function preload() {
-  this.load.image('dropSprite', 'assets/watercolor drop.png');
-  this.load.image('cloudSprite', 'assets/watercolor cloud.png');
-  this.load.image('sunbeamSprite', 'assets/watercolor sunbeam.png');
-  this.load.image('seedSprite', 'assets/watercolor seed.png');
-  this.load.image('pollutionSprite', 'assets/watercolor pollution.png');
-  this.load.image('heatwallSprite', 'assets/watercolor heatwall.png');
-  this.load.image('steamventSprite', 'assets/watercolor steamvent.png');
-  this.load.image('gearsSprite', 'assets/watercolor gears.png');
-  this.load.image('padSprite', 'assets/watercolor pad.png');
-  this.load.image('introPadSprite', 'assets/watercolor intropad.png');
-  this.load.image('flowerSprite', 'assets/watercolor flower.png');
-  this.load.image('vinesSprite', 'assets/watercolor vines.png');
-  this.load.image('rootSprite', 'assets/watercolor root.png');
-  this.load.image('airventSprite', 'assets/watercolor airvent.png');
+  const assets = [
+    ['dropSprite','assets/watercolor drop.png'],
+    ['cloudSprite','assets/watercolor cloud.png'],
+    ['sunbeamSprite','assets/watercolor sunbeam.png'],
+    ['seedSprite','assets/watercolor seed.png'],
+    ['pollutionSprite','assets/watercolor pollution.png'],
+    ['heatwallSprite','assets/watercolor heatwall.png'],
+    ['steamventSprite','assets/watercolor steamvent.png'],
+    ['gearsSprite','assets/watercolor gears.png'],
+    ['padSprite','assets/watercolor pad.png'],
+    ['introPadSprite','assets/watercolor intropad.png'],
+    ['flowerSprite','assets/watercolor flower.png'],
+    ['vinesSprite','assets/watercolor vines.png'],
+    ['rootSprite','assets/watercolor root.png'],
+    ['airventSprite','assets/watercolor airvent.png'],
+    ['seedling','assets/seedling.png'],
+    ['sprouting','assets/sprouting.png'],
+    ['plant','assets/plant.png']
+  ];
+  assets.forEach(a => this.load.image(a[0], a[1]));
 }
 
 function create() {
   const scene = this;
-  scene.cameras.main.setBounds(0, 0, 800, 3000);
-  scene.physics.world.setBounds(0, 0, 800, 3000);
-  // 🌤️ Atmosphere Layer
-  scene.add.rectangle(400, 300, 800, 600, 0xd0e2f2).setDepth(-1);
+  scene.cameras.main.setBounds(0,0,800,3000);
+  scene.physics.world.setBounds(0,0,800,3000);
 
-  // 🏭 Industrial Layer background
-  scene.add.rectangle(400, 1300, 800, 600, 0xcfcfcf).setDepth(-1);
+  // Achtergrondlagen
+  scene.add.rectangle(400,300,800,600,0xd0e2f2).setDepth(-1);
+  scene.add.rectangle(400,1300,800,600,0xcfcfcf).setDepth(-1);
+  scene.add.rectangle(400,1950,800,700,0xdbe6c6).setDepth(-1);
+  scene.add.rectangle(400,2450,800,900,0xdbe6c6).setDepth(-1);
 
-  // 🪵 Overgang Industrial → Fertile Earth
-  scene.add.rectangle(400, 1950, 800, 700, 0xdbe6c6).setDepth(-1);
-
-  // 🌱 Fertile Earth background
-  scene.add.rectangle(400, 2450, 800, 900, 0xdbe6c6).setDepth(-1);
-
-  drop = scene.physics.add.sprite(400, 100, 'dropSprite').setScale(originalScale).setCircle(100);
-  drop.body.setBounce(0.3);
-  drop.body.setCollideWorldBounds(true);
+  // drop
+  drop = scene.physics.add.sprite(400,100,'dropSprite').setScale(originalScale).setCircle(100);
+  drop.body.setBounce(0.3); drop.body.setCollideWorldBounds(true);
   scene.cameras.main.startFollow(drop);
 
-  messageText = scene.add.text(20, 20, "💧 You are One Drop. Reach the seed.", {
-    font: "18px Arial", fill: "#333"
-  }).setScrollFactor(0);
-
-  timerText = scene.add.text(650, 20, "Time: 0.0", {
-    font: "18px Arial", fill: "#333"
-  }).setScrollFactor(0);
-
-  // Reset instructie linksonder in beeld
-  resetText = scene.add.text(10, 580, "Press SPACE to reset", {
-    font: "16px Arial", fill: "#666"
-  }).setScrollFactor(0).setOrigin(0, 1);
+  messageText = scene.add.text(20,20,"💧 You are One Drop. Reach the seed.",{font:"18px Arial",fill:"#333"}).setScrollFactor(0);
+  timerText = scene.add.text(650,20,"Time: 0.0",{font:"18px Arial",fill:"#333"}).setScrollFactor(0);
+  scene.add.text(10,580,"Press SPACE to reset",{font:"16px Arial",fill:"#666"}).setScrollFactor(0).setOrigin(0,1);
 
   startTime = scene.time.now;
 
-  seed = scene.physics.add.sprite(400, 2950, 'seedSprite').setScale(0.1);
-  seed.body.setAllowGravity(false);
-  seed.body.setImmovable(true);
+  // seed + growth sprite
+  seed = scene.physics.add.sprite(400,2950,'seedSprite').setScale(0.1);
+  seed.body.setAllowGravity(false); seed.body.setImmovable(true);
+
+  growthSprite = scene.add.sprite(seed.x, seed.y - 60, 'seedling')
+    .setScale(0.8)
+    .setVisible(false);
+
   scene.physics.add.collider(drop, seed, () => {
-    if (!gameOver) {
+    if (!gameOver && growthStage === 0) {
       messageText.setText("🌱 Success! One drop sparked life.");
-      endGame(scene);
+      seed.setVisible(false);
+      seed.disableBody(true, true);
+      growthSprite.setVisible(true);
+      growthStage = 1;
+      scene.time.delayedCall(1000, () => {
+        if (growthStage === 1) { growthSprite.setTexture('sprouting'); growthStage = 2; }
+      });
+      scene.time.delayedCall(2000, () => {
+        if (growthStage === 2) {
+          growthSprite.setTexture('plant');
+          growthStage = 3;
+          messageText.setText("🌳 Life flourishes! You win!");
+        
+          endGame(scene);
+        }
+      });
     }
   });
 
-  // ☀️ Sunbeams
-  const sunbeams = [
-    scene.physics.add.sprite(400, 300, 'sunbeamSprite').setScale(0.4),
-    scene.physics.add.sprite(500, 500, 'sunbeamSprite').setScale(0.3)
-  ];
-  sunbeams.forEach((beam, i) => {
-    beam.body.setAllowGravity(false);
-    beam.body.setImmovable(true);
-    scene.tweens.add({
-      targets: beam,
-      x: { from: beam.x - 80, to: beam.x + 80 },
-      duration: 2500 + i * 500,
-      yoyo: true,
-      repeat: -1
-    });
+  // Sunbeams
+  [
+    {x:400,y:300,scale:0.4},
+    {x:500,y:500,scale:0.3}
+  ].forEach((cfg,i) => {
+    const beam = scene.physics.add.sprite(cfg.x,cfg.y,'sunbeamSprite').setScale(cfg.scale);
+    beam.body.setAllowGravity(false); beam.body.setImmovable(true);
+    scene.tweens.add({ targets: beam, x:{from:beam.x-80,to:beam.x+80}, duration:2500+i*500, yoyo:true, repeat:-1 });
     scene.physics.add.overlap(drop, beam, () => {
       if (!gameOver) {
-        drop.setScale(Math.max(drop.scaleX - 0.01, 0.05));
+        drop.setScale(Math.max(drop.scaleX-0.01,0.05));
         if (drop.scaleX <= 0.05) {
           drop.setVisible(false);
           scene.cameras.main.stopFollow();
           messageText.setText("☀️ Evaporated by sunlight...");
           endGame(scene);
-        } else {
-          messageText.setText("☀️ Sunlight shrinks you...");
-        }
+        } else messageText.setText("☀️ Sunlight shrinks you...");
       }
     });
   });
 
-  // ☁️ Clouds
-  const clouds = [
-    scene.physics.add.sprite(300, 200, 'cloudSprite').setScale(0.4),
-    scene.physics.add.sprite(500, 220, 'cloudSprite').setScale(0.4)
-  ];
-  clouds.forEach((cloud, i) => {
-    cloud.body.setAllowGravity(false);
-    cloud.body.setImmovable(true);
-    scene.tweens.add({
-      targets: cloud,
-      x: { from: cloud.x - 150, to: cloud.x + 150 },
-      duration: 4000 + i * 700,
-      yoyo: true,
-      repeat: -1
-    });
-    scene.physics.add.overlap(drop, cloud, () => {
+  // Clouds
+  [
+    {x:300,y:200},{x:500,y:220}
+  ].forEach((cfg,i) => {
+    const c = scene.physics.add.sprite(cfg.x,cfg.y,'cloudSprite').setScale(0.4);
+    c.body.setAllowGravity(false); c.body.setImmovable(true);
+    scene.tweens.add({ targets: c, x:{from:c.x-150,to:c.x+150}, duration:4000+i*700, yoyo:true, repeat:-1 });
+    scene.physics.add.overlap(drop, c, () => {
       if (!gameOver) {
-        drop.setScale(Math.min(drop.scaleX + 0.01, 0.3));
+        drop.setScale(Math.min(drop.scaleX+0.01,0.3));
         drop.setVisible(true);
         messageText.setText("☁️ Nourished by cloud...");
       }
     });
   });
 
-  // 🟣 Pollution Zones
+  // Pollution
   [1200].forEach(y => {
-    const p = scene.physics.add.sprite(Phaser.Math.Between(200, 600), y, 'pollutionSprite').setScale(0.2);
-    p.body.setAllowGravity(false);
-    p.body.setImmovable(true);
+    const p = scene.physics.add.sprite(Phaser.Math.Between(200,600), y, 'pollutionSprite').setScale(0.2);
+    p.body.setAllowGravity(false); p.body.setImmovable(true);
     scene.physics.add.overlap(drop, p, () => {
-      drop.body.setVelocityY(drop.body.velocity.y * 0.6);
+      drop.body.setVelocityY(drop.body.velocity.y*0.6);
       messageText.setText("🟣 Pollution weakens you...");
     });
   });
 
-  // ⚙️ Industrial Gears
-  for (let i = 0; i < 2; i++) {
-    const gear = scene.physics.add.sprite(Phaser.Math.Between(100, 700), Phaser.Math.Between(1100, 1500), 'gearsSprite').setScale(0.15);
-    gear.body.setAllowGravity(false);
-    gear.body.setImmovable(true);
+  // Gears
+  for (let i=0;i<2;i++) {
+    const gear = scene.physics.add.sprite(
+      Phaser.Math.Between(100,700),
+      Phaser.Math.Between(1100,1500),
+      'gearsSprite'
+    ).setScale(0.15);
+    gear.body.setAllowGravity(false); gear.body.setImmovable(true);
     scene.physics.add.collider(drop, gear, () => {
       scene.cameras.main.stopFollow();
       messageText.setText("⚙️ Crushed by gear...");
@@ -165,20 +156,17 @@ function create() {
     });
   }
 
-  // 🔥 Heat Wall
-  const heat = scene.physics.add.sprite(Phaser.Math.Between(100, 700), 1350, 'heatwallSprite').setScale(0.3);
-  heat.body.setAllowGravity(false);
-  heat.body.setImmovable(true);
+  // Heat Wall
+  const heat = scene.physics.add.sprite(Phaser.Math.Between(100,700),1350,'heatwallSprite').setScale(0.3);
+  heat.body.setAllowGravity(false); heat.body.setImmovable(true);
   scene.physics.add.overlap(drop, heat, () => {
-    drop.setScale(Math.max(drop.scaleX - 0.02, 0.05));
+    drop.setScale(Math.max(drop.scaleX-0.02,0.05));
     if (drop.scaleX <= 0.05) {
       drop.setVisible(false);
       scene.cameras.main.stopFollow();
       messageText.setText("🔥 Vaporized by industrial heat...");
       endGame(scene);
-    } else {
-      messageText.setText("🔥 Heat shrinks you...");
-    }
+    } else messageText.setText("🔥 Heat shrinks you...");
   });
 
   // 💨 Steam Vent
@@ -189,12 +177,14 @@ function create() {
     drop.body.setVelocityY(-220);
     messageText.setText("💨 Steam jet pushes you upward...");
   });
+
   // Fertile layer
   const seedY = 2950;
   const fertileMinX = 50;
   const fertileMaxX = 750;
   const fertileMinY = 1950;
   const fertileMaxY = seedY - 200; // 2750
+
   // 🌸 Intro Pad
   const introPadX = Phaser.Math.Between(fertileMinX, fertileMaxX);
   const introPadY = Phaser.Math.Between(fertileMinY, fertileMaxY);
@@ -205,6 +195,7 @@ function create() {
     drop.setScale(Math.min(drop.scaleX + 0.01, 0.35));
     messageText.setText("🌸 You enter life-rich soil...");
   });
+
   // 🌾 Fertile Pad
   const padX = Phaser.Math.Between(fertileMinX, fertileMaxX);
   const padY = Phaser.Math.Between(fertileMinY, fertileMaxY);
@@ -229,22 +220,23 @@ function create() {
 
   // 🌿 Moving Root
   const rootX = Phaser.Math.Between(fertileMinX, fertileMaxX);
-const rootY = Phaser.Math.Between(fertileMinY, fertileMaxY);
-const root = scene.physics.add.sprite(rootX, rootY, 'rootSprite').setScale(0.25);  // groter
-root.body.setAllowGravity(false);
-root.body.setImmovable(true);
-scene.tweens.add({
-  targets: root,
-  x: { from: rootX - 100, to: rootX + 100 },
-  duration: 4000,
-  yoyo: true,
-  repeat: -1
-});
-scene.physics.add.collider(drop, root, () => {
-  scene.cameras.main.stopFollow();
-  messageText.setText("🌿 Caught by root, stuck...");
-  endGame(scene);
-});
+  const rootY = Phaser.Math.Between(fertileMinY, fertileMaxY);
+  const root = scene.physics.add.sprite(rootX, rootY, 'rootSprite').setScale(0.25);  // groter
+  root.body.setAllowGravity(false);
+  root.body.setImmovable(true);
+  scene.tweens.add({
+    targets: root,
+    x: { from: rootX - 100, to: rootX + 100 },
+    duration: 4000,
+    yoyo: true,
+    repeat: -1
+  });
+  scene.physics.add.collider(drop, root, () => {
+    scene.cameras.main.stopFollow();
+    messageText.setText("🌿 Caught by root, stuck...");
+    endGame(scene);
+  });
+
   // 🍃 Vines
   const vineCount = 6;
   for (let i = 0; i < vineCount; i++) {
@@ -258,7 +250,6 @@ scene.physics.add.collider(drop, root, () => {
       messageText.setText("🍃 Tangled in vines, slowed down...");
     });
   }
-
 
   // 🌼 Flower (decoratie)
   const flowerCount = 6;
@@ -277,41 +268,25 @@ scene.physics.add.collider(drop, root, () => {
 
 function update() {
   if (gameOver) {
-    // Wacht gewoon op spatie om te resetten, ook als game over
     if (Phaser.Input.Keyboard.JustDown(spaceKey)) {
       this.scene.restart();
       gameOver = false;
+      growthStage = 0;
     }
     return;
   }
-
-  // Op elk moment op spatie drukken om te resetten
   if (Phaser.Input.Keyboard.JustDown(spaceKey)) {
     this.scene.restart();
     gameOver = false;
+    growthStage = 0;
     return;
   }
-
-  const elapsed = (this.time.now - startTime) / 1000;
+  const elapsed = (this.time.now - startTime)/1000;
   timerText.setText(`Time: ${elapsed.toFixed(1)}`);
-
-  // Automatisch een beetje krimpen over tijd
-  if (drop.scaleX > 0.15) {
-    drop.setScale(Math.max(drop.scaleX - 0.001, 0.15));
-  }
-
-  // Links/rechts bewegen
-  if (cursors.left.isDown) {
-    drop.setVelocityX(-200);
-  } else if (cursors.right.isDown) {
-    drop.setVelocityX(200);
-  } else {
-    drop.setVelocityX(0);
-  }
-
-  // Springen
-  if (Phaser.Input.Keyboard.JustDown(cursors.up) &&
-      (drop.body.blocked.down || drop.body.touching.down)) {
+  if (cursors.left.isDown) drop.setVelocityX(-200);
+  else if (cursors.right.isDown) drop.setVelocityX(200);
+  else drop.setVelocityX(0);
+  if (Phaser.Input.Keyboard.JustDown(cursors.up) && (drop.body.blocked.down || drop.body.touching.down)) {
     drop.setVelocityY(-350);
     messageText.setText("⬆️ Jump!");
   }
@@ -319,7 +294,8 @@ function update() {
 
 function endGame(scene) {
   gameOver = true;
-  drop.body.setVelocity(0, 0);
+  scene.cameras.main.fadeOut(2000, 255, 255, 255); // wit fade
+
+  drop.body.setVelocity(0,0);
   drop.body.moves = false;
-  // Geen automatische restart meer, nu wacht op spatie
 }
