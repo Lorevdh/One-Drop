@@ -24,61 +24,71 @@ let gameOver = false;
 let startTime;
 let dropRadius = 20;
 const originalColor = 0x1976d2;
+let lastZone = "";
 
 function preload() {
-  // Later kunnen ambient geluiden en visuals geladen worden
+  // Assets kunnen later geladen worden
 }
 
 function create() {
-  // 🌍 Vergroot de spelwereld
-  this.cameras.main.setBounds(0, 0, 800, 3000);
-  this.physics.world.setBounds(0, 0, 800, 3000);
+  const scene = this;
+  scene.cameras.main.setBounds(0, 0, 800, 3000);
+  scene.physics.world.setBounds(0, 0, 800, 3000);
 
-  // 💧 Druppel
-  drop = this.add.circle(400, 100, dropRadius, originalColor);
-  this.physics.add.existing(drop);
+  drop = scene.add.circle(400, 100, dropRadius, originalColor);
+  scene.physics.add.existing(drop);
   drop.body.setBounce(0.3);
   drop.body.setCollideWorldBounds(true);
-  this.cameras.main.startFollow(drop);
+  scene.cameras.main.startFollow(drop);
 
-  // 🌱 Zaadje
-  seed = this.add.circle(400, 2900, 14, 0x4caf50);
-  this.physics.add.existing(seed);
+  messageText = scene.add.text(20, 20, "💧 You are One Drop. Reach the seed.", {
+    font: "18px Arial", fill: "#333"
+  }).setScrollFactor(0);
+
+  timerText = scene.add.text(650, 20, "Time: 0.0", {
+    font: "18px Arial", fill: "#333"
+  }).setScrollFactor(0);
+
+  startTime = scene.time.now;
+
+  seed = scene.add.circle(400, 2900, 14, 0x4caf50);
+  scene.physics.add.existing(seed);
   seed.body.setAllowGravity(false);
   seed.body.setImmovable(true);
-  this.physics.add.collider(drop, seed, () => {
+  scene.physics.add.collider(drop, seed, () => {
     if (!gameOver) {
       messageText.setText("🌱 Success! One drop sparked life.");
-      endGame(this);
+      endGame(scene);
     }
   });
 
-  // ☀️ Zonnestralen
+  // 🌤️ Atmosphere Layer
+  scene.add.rectangle(400, 300, 800, 600, 0xd0e2f2).setDepth(-1);
+
   const sunbeams = [
-    this.add.rectangle(400, 300, 140, 20, 0xffff66),
-    this.add.rectangle(500, 500, 100, 20, 0xffff99)
+    scene.add.rectangle(400, 300, 140, 20, 0xffff66),
+    scene.add.rectangle(500, 500, 100, 20, 0xffff99)
   ];
   sunbeams.forEach((beam, i) => {
-    this.physics.add.existing(beam);
+    scene.physics.add.existing(beam);
     beam.body.setAllowGravity(false);
     beam.body.setImmovable(true);
-    this.tweens.add({
+    scene.tweens.add({
       targets: beam,
       x: { from: beam.x - 80, to: beam.x + 80 },
       duration: 2500 + i * 500,
       yoyo: true,
       repeat: -1
     });
-
-    this.physics.add.overlap(drop, beam, () => {
+    scene.physics.add.overlap(drop, beam, () => {
       if (!gameOver) {
         dropRadius = Math.max(dropRadius - 2, 6);
         drop.setRadius(dropRadius);
         if (dropRadius <= 6) {
-          drop.setVisible(false);            // 🫧 Verdampen — druppel verdwijnt
-          this.cameras.main.stopFollow();    // 📷 Camera stopt met volgen
+          drop.setVisible(false);
+          scene.cameras.main.stopFollow();
           messageText.setText("☀️ Evaporated by sunlight...");
-          endGame(this);
+          endGame(scene);
         } else {
           messageText.setText("☀️ Sunlight shrinks you...");
         }
@@ -86,95 +96,146 @@ function create() {
     });
   });
 
-  // ☁️ Wolken
   const clouds = [
-    this.add.ellipse(300, 200, 120, 60, 0xbbdefb, 0.6),
-    this.add.ellipse(500, 220, 120, 60, 0xbbdefb, 0.6)
+    scene.add.ellipse(300, 200, 120, 60, 0xbbdefb, 0.6),
+    scene.add.ellipse(500, 220, 120, 60, 0xbbdefb, 0.6)
   ];
   clouds.forEach((cloud, i) => {
-    this.physics.add.existing(cloud);
+    scene.physics.add.existing(cloud);
     cloud.body.setAllowGravity(false);
     cloud.body.setImmovable(true);
-    this.tweens.add({
+    scene.tweens.add({
       targets: cloud,
       x: { from: cloud.x - 150, to: cloud.x + 150 },
       duration: 4000 + i * 700,
       yoyo: true,
       repeat: -1
     });
-
-    this.physics.add.overlap(drop, cloud, () => {
+    scene.physics.add.overlap(drop, cloud, () => {
       if (!gameOver) {
         dropRadius = Math.min(dropRadius + 2, 34);
         drop.setRadius(dropRadius);
-        drop.setVisible(true);              // 💫 Herboren als die eerder was verdampt
+        drop.setVisible(true);
         messageText.setText("☁️ Nourished by cloud...");
       }
     });
   });
 
-  // 🌿 Wortels
-  const rootTraps = [
-    this.add.rectangle(200, 900, 180, 20, 0x6d4c41),
-    this.add.rectangle(600, 1600, 180, 20, 0x6d4c41)
-  ];
-  rootTraps.forEach(root => {
-    this.physics.add.existing(root);
-    root.body.setAllowGravity(false);
-    root.body.setImmovable(true);
-    this.physics.add.collider(drop, root, () => {
-      this.cameras.main.stopFollow();       // 📷 Camera stopt bij absorptie
-      messageText.setText("🌿 Absorbed by thirsty root...");
-      endGame(this);
-    });
-  });
-
-  // 🟣 Vervuiling
   const pollutionZones = [
-    this.add.circle(350, 1200, 30, 0x4e4e4e),
-    this.add.circle(450, 2200, 30, 0x4e4e4e)
+    scene.add.circle(Phaser.Math.Between(200, 600), 1200, 30, 0x4e4e4e),
+    scene.add.circle(Phaser.Math.Between(200, 600), 2200, 30, 0x4e4e4e)
   ];
   pollutionZones.forEach(blob => {
-    this.physics.add.existing(blob);
+    scene.physics.add.existing(blob);
     blob.body.setAllowGravity(false);
     blob.body.setImmovable(true);
-    this.physics.add.overlap(drop, blob, () => {
+    scene.physics.add.overlap(drop, blob, () => {
       drop.body.setVelocityY(drop.body.velocity.y * 0.6);
       messageText.setText("🟣 Pollution weakens you...");
     });
   });
 
-  // 🎮 Besturing
-  this.input.keyboard.on("keydown-LEFT", () => {
+  // 🏭 Industrial Layer
+  const offsetY2 = 1000;
+  scene.add.rectangle(400, offsetY2 + 300, 800, 600, 0xcfcfcf).setDepth(-1);
+
+  // ⚙️ Random Gears
+  for (let i = 0; i < 2; i++) {
+    const x = Phaser.Math.Between(100, 700);
+    const y = Phaser.Math.Between(offsetY2 + 100, offsetY2 + 500);
+    const gear = scene.add.rectangle(x, y, 60, 60, 0x888888);
+    scene.physics.add.existing(gear);
+    gear.body.setAllowGravity(false);
+    gear.body.setImmovable(true);
+    scene.physics.add.collider(drop, gear, () => {
+      scene.cameras.main.stopFollow();
+      messageText.setText("⚙️ Crushed by gear...");
+      endGame(scene);
+    });
+  }
+
+  // 🔥 Random Heat Wall
+  const heatWall = scene.add.rectangle(
+    Phaser.Math.Between(100, 700),
+    Phaser.Math.Between(offsetY2 + 150, offsetY2 + 500),
+    120, 20, 0xff5722
+  );
+  scene.physics.add.existing(heatWall);
+  heatWall.body.setAllowGravity(false);
+  heatWall.body.setImmovable(true);
+  scene.physics.add.overlap(drop, heatWall, () => {
+    if (!gameOver) {
+      dropRadius = Math.max(dropRadius - 3, 6);
+      drop.setRadius(dropRadius);
+      if (dropRadius <= 6) {
+        drop.setVisible(false);
+        scene.cameras.main.stopFollow();
+        messageText.setText("🔥 Vaporized by industrial heat...");
+        endGame(scene);
+      } else {
+        messageText.setText("🔥 Heat shrinks you...");
+      }
+    }
+  });
+
+  // 💨 Random Steam Vent
+  const steamVent = scene.add.rectangle(
+    Phaser.Math.Between(100, 700),
+    Phaser.Math.Between(offsetY2 + 100, offsetY2 + 400),
+    120, 20, 0x90caf9
+  );
+  scene.physics.add.existing(steamVent);
+  steamVent.body.setAllowGravity(false);
+  steamVent.body.setImmovable(true);
+  scene.physics.add.collider(drop, steamVent, () => {
+    drop.body.setVelocityY(-220);
+    messageText.setText("💨 Steam jet pushes you upward...");
+  });
+
+  // 🟣 Random Pollution Blob
+  const pollutionBlob = scene.add.circle(
+    Phaser.Math.Between(150, 650),
+    Phaser.Math.Between(offsetY2 + 100, offsetY2 + 500),
+    30, 0x4e4e4e
+  );
+  scene.physics.add.existing(pollutionBlob);
+  pollutionBlob.body.setAllowGravity(false);
+  pollutionBlob.body.setImmovable(true);
+  scene.physics.add.overlap(drop, pollutionBlob, () => {
+    drop.body.setVelocityY(drop.body.velocity.y * 0.5);
+    messageText.setText("🟣 Heavy pollution...");
+  });
+
+  // 🎮 Controls
+  scene.input.keyboard.on("keydown-LEFT", () => {
     if (!gameOver) drop.body.setVelocityX(-120);
   });
-  this.input.keyboard.on("keydown-RIGHT", () => {
+
+  scene.input.keyboard.on("keydown-RIGHT", () => {
     if (!gameOver) drop.body.setVelocityX(120);
   });
 
-  // 🔄 Spatie = reset
-  this.input.keyboard.on("keydown-SPACE", () => {
-    if (gameOver) resetDrop(this);
+  scene.input.keyboard.on("keydown-SPACE", () => {
+    if (gameOver) resetDrop(scene);
   });
-
-  // 📜 Tekst
-  messageText = this.add.text(20, 20, "💧 You are One Drop. Reach the seed.", {
-    font: "18px Arial",
-    fill: "#333"
-  }).setScrollFactor(0);
-
-  timerText = this.add.text(650, 20, "Time: 0.0", {
-    font: "18px Arial",
-    fill: "#333"
-  }).setScrollFactor(0);
-
-  startTime = this.time.now;
 }
 
 function update() {
   if (gameOver) return;
   const elapsed = (this.time.now - startTime) / 1000;
   timerText.setText("Time: " + elapsed.toFixed(1));
+
+  const y = drop.y;
+  let zoneName = "";
+
+  if (y < 1000) zoneName = "Atmosphere";
+  else if (y >= 1000 && y < 2000) zoneName = "Industrial Layer";
+  else if (y >= 2000) zoneName = "Growth Zone";
+
+  if (zoneName !== lastZone && !gameOver) {
+    messageText.setText(`💧 One Drop in: ${zoneName}`);
+    lastZone = zoneName;
+  }
 }
 
 function endGame(scene) {
@@ -190,9 +251,10 @@ function resetDrop(scene) {
   drop.body.setVelocity(0, 0);
   dropRadius = 20;
   drop.setRadius(dropRadius);
-  drop.setVisible(true);                    // ✨ Herstel zichtbaarheid
-  scene.cameras.main.startFollow(drop);     // 🎥 Camera weer volgen
+  drop.setVisible(true);
+  scene.cameras.main.startFollow(drop);
   gameOver = false;
+  lastZone = "";
   messageText.setText("💧 You are One Drop. Reach the seed.");
   startTime = scene.time.now;
 }

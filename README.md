@@ -16,7 +16,7 @@ A poetic, side-scrolling game where you play as a solitary droplet journeying th
 
 ## 🌟 Coming Soon (hopefully)
 
-- Level-based expansion 
+- Level-based expansion( in construction)
 - Narrative voice-over
 - Ambient sounds + atmospheric music
 - Symbolic ending with seed animation
