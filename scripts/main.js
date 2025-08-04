@@ -294,7 +294,7 @@ function update() {
 
 function endGame(scene) {
   gameOver = true;
-  scene.cameras.main.fadeOut(2000, 255, 255, 255); // wit fade
+ // scene.cameras.main.fadeOut(2000, 255, 255, 255); // wit fade
 
   drop.body.setVelocity(0,0);
   drop.body.moves = false;
