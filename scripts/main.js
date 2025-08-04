@@ -304,7 +304,24 @@ for (let i = 0; i < 2; i++) {
   });
 }
 
+//End zone 
+  // 🌬️ Bodemvent – voorkomt dat je onderaan vastzit
+  const bottomVent = scene.add.rectangle(400, 2980, 800, 20, 0x90caf9, 0.4);
+  scene.physics.add.existing(bottomVent);
+  bottomVent.body.setAllowGravity(false);
+  bottomVent.body.setImmovable(true);
+  scene.physics.add.collider(drop, bottomVent, () => {
+    drop.body.setVelocityY(-180);
+    messageText.setText("🌬️ Lifted from root hollow...");
+  });
+
   // 🎮 Controls
+  const resetHint = scene.add.text(20, scene.scale.height - 40, 'SPACE to reset', {
+  font: '18px Arial',
+  fill: '#333'
+});
+resetHint.setScrollFactor(0); // Zorg dat het mee blijft bewegen met de camera
+
   scene.input.keyboard.on("keydown-LEFT", () => {
     if (!gameOver) drop.body.setVelocityX(-120);
   });
@@ -313,9 +330,9 @@ for (let i = 0; i < 2; i++) {
     if (!gameOver) drop.body.setVelocityX(120);
   });
 
-  scene.input.keyboard.on("keydown-SPACE", () => {
-    if (gameOver) resetDrop(scene);
-  });
+scene.input.keyboard.on("keydown-SPACE", () => {
+  resetDrop(scene);
+});
 }
 
 function update() {
